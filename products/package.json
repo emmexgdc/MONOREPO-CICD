@@ -1,0 +1,14 @@
+{
+    "name": "microservice-products",
+    "version": "1.0p",
+    "description": "",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "author": "NJ",
+    "license": "ISC",
+    "dependencies": {
+        "express": "^4.19.2"
+    }
+}
