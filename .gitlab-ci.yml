@@ -1,0 +1,49 @@
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
+
+variables:
+  SERVER_IP: 54.88.229.191
+  APP_ENDPOINT: "http://ec2-54-88-229-191.compute-1.amazonaws.com:3000"
+
+stages:
+  - build
+  - deploy
+
+.build:
+  stage: build
+  tags:
+    - docker
+  variables:
+    MICRO_SERVICE: ""
+  before_script:
+    - cd $MICRO_SERVICE
+    - apk add --no-cache jq
+    - jq --version
+    - export APP_VERSION=$(cat package.json | jq -r .version)
+    - export VERSION=$APP_VERSION.$CI_PIPELINE_IID
+    - export IMAGE_NAME=$CI_REGISTRY_IMAGE/$MICRO_SERVICE
+    - echo $VERSION > version.txt # Save version to a file
+  script:
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - docker build -t $IMAGE_NAME:$VERSION .
+    - docker push $IMAGE_NAME:$VERSION
+  artifacts:
+    paths:
+      - $MICRO_SERVICE/version.txt
+
+build_frontend:
+  extends: .build
+  variables:
+    MICRO_SERVICE: frontend
+
+build_products:
+  extends: .build
+  variables:
+    MICRO_SERVICE: products
+
+build_shopping-cart:
+  extends: .build
+  variables:
+    MICRO_SERVICE: shopping-cart
