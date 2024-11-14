@@ -37,13 +37,81 @@ build_frontend:
   extends: .build
   variables:
     MICRO_SERVICE: frontend
+  only:
+    changes:
+      - "frontend/**/*"
 
 build_products:
   extends: .build
   variables:
     MICRO_SERVICE: products
+  only:
+    changes:
+      - "products/**/*"
 
 build_shopping-cart:
   extends: .build
   variables:
     MICRO_SERVICE: shopping-cart
+  only:
+    changes:
+      - "shopping-cart/**/*"
+
+
+.deploy:
+  stage: deploy
+  tags: 
+    - docker 
+  variables:
+    MICRO_SERVICE: ""
+    APP_PORT: ""
+  before_script:
+    - export IMAGE_NAME=$CI_REGISTRY_IMAGE/$MICRO_SERVICE
+    - export VERSION=$(cat $MICRO_SERVICE/version.txt)
+    - export IMAGE_TAG=$VERSION
+    - echo $IMAGE_TAG
+    - chmod 400 $SSH_PRIVATE_KEY
+  script:
+    - scp -o StrictHostKeyChecking=no -i $SSH_PRIVATE_KEY ./docker-compose.yml ubuntu@$SERVER_IP:/home/ubuntu
+    - ssh -o StrictHostKeyChecking=no -i $SSH_PRIVATE_KEY ubuntu@$SERVER_IP "
+      echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY &&
+      
+        export COMPOSE_PROJECT_NAME=$MICRO_SERVICE
+        export DC_IMAGE_NAME=$IMAGE_NAME &&
+        export DC_IMAGE_TAG=$IMAGE_TAG &&
+        export DC_APP_PORT=$APP_PORT &&
+        
+        docker network create micro_service || true &&
+        
+        docker compose down &&
+        docker compose up -d"
+  environment:
+    name: frontend
+    url: $APP_ENDPOINT
+
+deploy_frontend:
+  extends: .deploy
+  variables:
+    MICRO_SERVICE: frontend
+    APP_PORT: 3000
+  only:
+    changes:
+      - "frontend/**/*"
+
+deploy_products:
+  extends: .deploy
+  variables:
+    MICRO_SERVICE: products
+    APP_PORT: 3001
+  only:
+    changes:
+      - "products/**/*"
+
+deploy_shopping-cart:
+  extends: .deploy
+  variables:
+    MICRO_SERVICE: shopping-cart
+    APP_PORT: 3002
+  only:
+    changes:
+      - "shopping-cart/**/*"
